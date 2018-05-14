@@ -20,7 +20,16 @@
 
 package lpsolve;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.URL;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 
@@ -272,8 +281,91 @@ public class LpSolve {
 	 * Static initializer to load the stub library
 	 */
 	static {
-		System.loadLibrary("lpsolve55j");
-		init();
+		try {
+			loadLibrary("liblpsolve55j", true);
+			init();
+		} catch (Throwable err) {
+			throw new RuntimeException(err);
+		}
+	}
+
+	private static void loadLibrary(String libname, boolean isJniLib) throws Throwable {
+		String osName = "";
+		String tmpDir = "";
+
+		if (System.getSecurityManager() == null) {
+			osName = System.getProperty("os.name");
+			tmpDir = System.getProperty("java.io.tmpdir");
+		} else {
+			osName = AccessController.doPrivileged((PrivilegedAction<String>) () -> System.getProperty("os.name"));
+			tmpDir = AccessController.doPrivileged((PrivilegedAction<String>) () -> System.getProperty("java.io.tmpdir"));
+		}
+
+		osName = osName.toLowerCase(Locale.US).replaceAll("[^a-z0-9]+", "");
+
+		ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+
+		URL url;
+		String prefix, suffix;
+		if (osName.startsWith("osx") || osName.startsWith("macosx")) {
+			if (isJniLib) {
+				url = classLoader.getResource("mac/" + libname + ".jnilib");
+				prefix = libname;
+				suffix = ".jnilib";
+			} else {
+				url = classLoader.getResource("mac/" + libname + ".dylib");
+				prefix = libname;
+				suffix = ".dylib";
+			}
+		} else {
+			url = classLoader.getResource("ux64/" + libname + ".so");
+			prefix = libname;
+			suffix = ".so";
+		}
+
+		InputStream in = null;
+		OutputStream out = null;
+		File tmpFile = null;
+		boolean loaded = false;
+		try {
+			tmpFile = File.createTempFile(prefix, suffix, new File(tmpDir));
+			in = url.openStream();
+			out = new FileOutputStream(tmpFile);
+
+			byte[] buffer = new byte[8192];
+			int length;
+			while ((length = in.read(buffer)) > 0) {
+				out.write(buffer, 0, length);
+			}
+			out.flush();
+			out.close();
+			System.load(tmpFile.getPath());
+			loaded = true;
+		} catch (Throwable e) {
+			throw new UnsatisfiedLinkError("could not load a native library: " + libname).initCause(e);
+		} finally {
+			if (in != null) {
+				try {
+					in.close();
+				} catch (IOException ignore) {
+					// ignore
+				}
+			}
+			if (out != null) {
+				try {
+					out.close();
+				} catch (IOException ignore) {
+					// ignore
+				}
+			}
+			if (tmpFile != null) {
+				if (loaded) {
+					tmpFile.deleteOnExit();
+				} else if (!tmpFile.delete()) {
+					tmpFile.deleteOnExit();
+				}
+			}
+		}
 	}
 
 	/**

@@ -11,13 +11,13 @@
 #
 # Change the paths below this line and you should be ready to go!
 # -------------------------------------------------------------------
-LPSOLVE_DIR=/Users/spkane/Desktop/mac/downloads/lp_solve/lp_solve_5.5
+LPSOLVE_DIR=/Users/bode01/Downloads/lp_solve_5.5
 JDK_DIR=/System/Library/Frameworks/JavaVM.framework/Versions/Current/Headers
 
 # OK, here we go!
 
-SRC_DIR=../../src/c
+SRC_DIR=../../src/main/c
 INCL="-I $JDK_DIR -I $LPSOLVE_DIR -I $SRC_DIR -idirafter /usr/include/sys"
 
-g++ -fPIC -fno-common $INCL -c $SRC_DIR/lpsolve5j.cpp
-g++ -dynamiclib lpsolve5j.o -compatibility_version 5.5.0 -current_version 5.5.0 -o liblpsolve55j.jnilib -lc -llpsolve55
+g++-8 -fPIC -fno-common $INCL -c $SRC_DIR/lpsolve5j.cpp
+g++-8 -dynamiclib lpsolve5j.o -compatibility_version 5.5.0 -current_version 5.5.0 -o liblpsolve55j.jnilib -ldl -lc -llpsolve55 -L.
